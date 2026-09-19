@@ -1,0 +1,48 @@
+name: Update Database
+
+on:
+  # 定期実行する場合（例: 毎週月曜日の深夜0時）
+  #schedule:
+  #  - cron: '0 0 * * 1'
+  
+  # GitHubの「Actions」タブから手動でも実行できるようにする
+  workflow_dispatch:
+
+# リポジトリへの書き込み権限を付与
+permissions:
+  contents: write
+
+jobs:
+  run-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run Python scripts
+        run: |
+          python src/get_libretro_database.py
+          python src/get_nescartdb.py
+          python src/get_wiki_licensed1384.py
+
+      - name: Commit and push changes to db/
+        run: |
+          # ユーザ名をボットに
+          git config --global user.name "github-actions[bot]"
+          # ボット用のメールアドレス設定
+          git config --global user.email "github-actions[bot]@users.noreply.github.io"
+          # dbフォルダ作成
+          git add db/
+          # 変更がある場合のみ自動でコミット＆プッシュする
+          git diff --staged --quiet || git commit -m "Auto-update database files"
+          git push
