@@ -4,26 +4,29 @@ import re
 import pandas as pd
 import requests
 
-url = "http://pasofami.game.coocan.jp/nesalltitlelst.htm"
+target_url = "http://pasofami.game.coocan.jp/nesalltitlelst.htm"
 
+print("Wayback Machineからアーカイブ情報を取得中...")
+api_url = f"http://archive.org/wayback/available?url={target_url}"
+api_res = requests.get(api_url).json()
+
+if (
+    "archived_snapshots" in api_res
+    and "closest" in api_res["archived_snapshots"]
+):
+  archive_url = api_res["archived_snapshots"]["closest"]["url"]
+  print(f"取得元アーカイブURL: {archive_url}")
+else:
+  raise RuntimeError("Wayback Machineに対象ページのアーカイブが見つかりません。")
+
+print("PasofamiのHTMLを取得中...")
 headers = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
         " like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
-    "Referer": "http://pasofami.game.coocan.jp/",
+    )
 }
-#headers = {
-#    "User-Agent": (
-#        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
-#        " like Gecko) Chrome/120.0.0.0 Safari/537.36"
-#    )
-#}
-
-print("PasofamiからHTMLを取得中...")
-response = requests.get(url, headers=headers)
-# サイトのエンコーディングがShift_JISのため明示的に指定
+response = requests.get(archive_url, headers=headers)
 response.encoding = "shift_jis"
 response.raise_for_status()
 
@@ -71,7 +74,7 @@ xml_data = df_all.to_xml(
 # dbディレクトリに保存
 output_dir = "db"
 os.makedirs(output_dir, exist_ok=True)
-output_filename = os.path.join(output_dir, "db/pasofami_nes_games.xml")
+output_filename = os.path.join(output_dir, "pasofami_nes_games.xml")
 
 with open(output_filename, "w", encoding="utf-8") as f:
   f.write(xml_data)
