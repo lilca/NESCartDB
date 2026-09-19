@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NESCartDB Viewer</title>
+    <!-- Tailwind CSS for clean styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- sql.js (WebAssembly) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold mb-2">🎮 NESCartDB Viewer</h1>
+            <p class="text-slate-400">SQLiteデータベース (nes_games.db) の閲覧・検索ツール</p>
+        </header>
+
+        <!-- 検索バー -->
+        <div class="mb-6 flex gap-4">
+            <input type="text" id="searchInput" placeholder="タイトルやキーワードで検索..." 
+                class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500">
+            <button id="loadBtn" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-semibold transition">
+                DB読み込み
+            </button>
+        </div>
+
+        <!-- ステータス・件数表示 -->
+        <div id="status" class="text-sm text-slate-400 mb-4">「DB読み込み」ボタンを押してデータをロードしてください。</div>
+
+        <!-- テーブル表示エリア -->
+        <div class="bg-slate-800 rounded-lg shadow overflow-x-auto border border-slate-700">
+            <table class="w-full text-left border-collapse" id="resultTable">
+                <thead id="tableHead" class="bg-slate-700 text-slate-300 uppercase text-xs"></thead>
+                <tbody id="tableBody" class="divide-y divide-slate-700 text-sm"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let db = null;
+
+        async function initDB() {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = "データベースをダウンロード中...";
+
+            try {
+                // SQL.jsの初期化
+                const SQL = await initSqlJs({
+                    locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+                });
+
+                // db/nes_games.db をフェッチ (パスはプロジェクトの公開構造に合わせて調整してください)
+                const response = await fetch('../db/nes_games.db');
+                if (!response.ok) throw new Error("データベースファイルが見つかりません。");
+                
+                const buffer = await response.arrayBuffer();
+                db = new SQL.Database(new Uint8Array(buffer));
+
+                statusEl.textContent = "データベースの読み込みが完了しました。";
+                queryData();
+            } catch (err) {
+                statusEl.textContent = "エラー: " + err.message;
+                console.error(err);
+            }
+        }
+
+        function queryData(keyword = "") {
+            if (!db) return;
+
+            try {
+                let query = "SELECT * FROM games";
+                let params = [];
+
+                if (keyword) {
+                    query += " WHERE title LIKE ?";
+                    params = [`%${keyword}%`];
+                }
+                query += " LIMIT 100"; // 表示件数制限
+
+                const stmt = db.prepare(query);
+                stmt.bind(params);
+
+                const columns = stmt.getColumnNames();
+                const rows = [];
+                while (stmt.step()) {
+                    rows.push(stmt.get());
+                }
+                stmt.free();
+
+                renderTable(columns, rows);
+                document.getElementById('status').textContent = `表示中: ${rows.length} 件`;
+            } catch (err) {
+                console.error(err);
+                document.getElementById('status').textContent = "クエリ実行エラー（テーブルが存在しない可能性があります）";
+            }
+        }
+
+        function renderTable(columns, rows) {
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+
+            thead.innerHTML = `<tr>${columns.map(col => `<th class="px-6 py-3">${col}</th>`).join('')}</tr>`;
+            
+            if (rows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${columns.length}" class="px-6 py-4 text-center text-slate-400">データが見つかりません</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = rows.map(row => 
+                `<tr class="hover:bg-slate-700/50">${row.map(val => `<td class="px-6 py-4">${val !== null ? val : ''}</td>`).join('')}</tr>`
+            ).join('');
+        }
+
+        document.getElementById('loadBtn').addEventListener('click', () => initDB());
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            queryData(e.target.value);
+        });
+    </script>
+</body>
+</html>
