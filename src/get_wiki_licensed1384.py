@@ -48,7 +48,7 @@ df_all = df_all.fillna("")
 xml_data = df_all.to_xml(index=False, encoding="utf-8", root_name="famicom_games", row_name="game")
 
 # ファイルに保存
-output_filename = "famicom_games_wiki.xml"
+output_filename = "db/famicom_games_wiki.xml"
 with open(output_filename, "w", encoding="utf-8") as f:
     f.write(xml_data)
 
