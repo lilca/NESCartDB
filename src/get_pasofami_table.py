@@ -9,9 +9,17 @@ url = "http://pasofami.game.coocan.jp/nesalltitlelst.htm"
 headers = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
-        " like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    )
+        " like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    "Referer": "http://pasofami.game.coocan.jp/",
 }
+#headers = {
+#    "User-Agent": (
+#        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
+#        " like Gecko) Chrome/120.0.0.0 Safari/537.36"
+#    )
+#}
 
 print("PasofamiからHTMLを取得中...")
 response = requests.get(url, headers=headers)
