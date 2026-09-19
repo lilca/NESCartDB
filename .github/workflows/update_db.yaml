@@ -34,6 +34,7 @@ jobs:
           python src/get_libretro_database.py
           python src/get_nescartdb.py
           python src/get_wiki_licensed1384.py
+          python src/get_pasofami_table.py
 
       - name: Commit and push changes to db/
         run: |
