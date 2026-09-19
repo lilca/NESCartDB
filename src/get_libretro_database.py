@@ -3,7 +3,7 @@ import requests
 
 # libretro-databaseにあるファミコン（NES）用DATファイルのRaw URL
 url = "https://github.com/libretro/libretro-database/raw/master/dat/Nintendo%20-%20Nintendo%20Entertainment%20System.dat"
-output_filename = "nes_libretro.dat"
+output_filename = "db/nes_libretro.dat"
 
 print("ファミコン用DATファイルをダウンロード中...")
 response = requests.get(url)
