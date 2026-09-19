@@ -4,7 +4,7 @@ import requests
 url = (
     "https://raw.githubusercontent.com/libretro/nestopia/master/NstDatabase.xml"
 )
-xml_filename = "NstDatabase.xml"
+xml_filename = "db/NstDatabase.xml"
 
 print(
     "決定版データベース (NstDatabase.xml) をGitHubから直接ダウンロード中..."
