@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests
-
+          pip install requests pandas
+          
       - name: Run Python scripts
         run: |
           python src/get_libretro_database.py
