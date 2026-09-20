@@ -37,6 +37,7 @@ jobs:
           # ※スクリプトの配置場所（src/ の有無など）に合わせてパスを調整してください
           python src/create_sqlite_db.py
           python src/insert_nescartdb.py
+          python src/insert_pasofami_table.py
 
       - name: Commit and push updated SQLite database
         run: |
