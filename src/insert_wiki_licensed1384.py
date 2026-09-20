@@ -31,7 +31,9 @@ def import_famicom_wiki_xml(xml_path, db_path):
 
   # 既存データをクリア（必要に応じてコメントアウトしてください）
   cursor.execute("DELETE FROM famicom_wiki")
-
+  # AUTOINCREMENTのカウンターをリセットする
+  cursor.execute("DELETE FROM sqlite_sequence WHERE name='famicom_wiki'")
+  
   insert_count = 0
 
   for game in root.findall("game"):
