@@ -16,7 +16,7 @@
             <p class="text-slate-400">SQLiteデータベースの閲覧・複数テーブル検索ツール</p>
         </header>
 
-        <!-- コントロールエリア（テーブル選択 ＆ 検索バー） -->
+        <!-- コントロールエリア -->
         <div class="mb-6 flex gap-4 flex-wrap items-center">
             <!-- テーブル一覧選択セレクトボックス -->
             <select id="tableSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-slate-200">
@@ -26,42 +26,55 @@
             <input type="text" id="searchInput" placeholder="選択中のテーブルをキーワード検索..." 
                 class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 min-w-[200px]" disabled>
             
+            <!-- ① 1ページあたりの表示件数セレクトボックス -->
+            <select id="pageSizeSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-slate-200">
+                <option value="25">25件表示</option>
+                <option value="50">50件表示</option>
+                <option value="100" selected>100件表示</option>
+            </select>
+
             <button id="loadBtn" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-semibold transition">
                 DB再読み込み
             </button>
         </div>
 
-        <!-- ステータス・件数表示 -->
+        <!-- ③ ステータス・ヒット件数表示 -->
         <div id="status" class="text-sm text-slate-400 mb-4">「DB再読み込み」ボタンを押してデータをロードしてください。</div>
 
         <!-- テーブル表示エリア -->
-        <div class="bg-slate-800 rounded-lg shadow overflow-x-auto border border-slate-700 mb-8">
+        <div class="bg-slate-800 rounded-lg shadow overflow-x-auto border border-slate-700 mb-4">
             <table class="w-full text-left border-collapse" id="resultTable">
                 <thead id="tableHead" class="bg-slate-700 text-slate-300 uppercase text-xs"></thead>
                 <tbody id="tableBody" class="divide-y divide-slate-700 text-sm"></tbody>
             </table>
         </div>
 
-        <!-- 使い方セクション（下部） -->
+        <!-- ② ページネーションコントロール（前へ・ページ情報・次へ） -->
+        <div id="pagination" class="flex justify-between items-center mb-8 bg-slate-800/50 border border-slate-700 rounded-lg px-6 py-3">
+            <button id="prevBtn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
+                ◀ 前へ
+            </button>
+            <span id="pageInfo" class="text-sm text-slate-300">0 / 0 ページ (全 0 件)</span>
+            <button id="nextBtn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
+                次へ ▶
+            </button>
+        </div>
+
+        <!-- 使い方セクション -->
         <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
             <h2 class="text-xl font-bold mb-3 text-slate-200">📖 使い方ガイド</h2>
             <ol class="list-decimal list-inside space-y-3 text-slate-300 text-sm">
                 <li>
-                    <strong class="text-indigo-400">テーブルの選択:</strong> 
-                    上部のセレクトボックスから閲覧・検索したいテーブルを選択します。選択すると自動でデータが読み込まれます。
+                    <strong class="text-indigo-400">テーブルの選択 & 表示件数:</strong> 
+                    上部のセレクトボックスからテーブルを選び、必要に応じて「25件表示」「50件表示」などを切り替えます。
                 </li>
                 <li>
-                    <strong class="text-indigo-400">検索バーの使い方（横断あいまい検索）:</strong>
-                    <ul class="list-disc list-inside ml-6 mt-1 space-y-1 text-slate-400">
-                        <li>キーワードを入力すると、選択中のテーブル内にある<strong>すべてのカラム（項目）を対象にリアルタイムで絞り込み</strong>が行われます（最大100件表示）。</li>
-                        <li>CRC32（例: <code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-300">001388B3</code>）やSHA1ハッシュの一部、基板名（例: <code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-300">TLROM</code>）、システム名などをそのまま入力して検索できます。</li>
-                        <li>大文字・小文字は区別されず、部分一致（一部の文字が含まれていればヒット）に対応しています。</li>
-                        <li>検索ボックスの中身をすべて消去（空欄）にすると、自動で全件一覧表示に戻ります。</li>
-                    </ul>
+                    <strong class="text-indigo-400">ページネーション（2ページ目以降）:</strong>
+                    データが多い場合は、下部の「前へ」「次へ」ボタンでページを切り替えて閲覧できます。
                 </li>
                 <li>
-                    <strong class="text-indigo-400">DBファイルの再読み込み:</strong> 
-                    データベースファイルを差し替え・更新した場合は、右上の「DB再読み込み」ボタンを押すことで最新のデータを再読み込みできます。
+                    <strong class="text-indigo-400">検索のヒット件数表示:</strong>
+                    キーワードを入力すると、リアルタイムでヒットした総件数がステータスとページ情報に反映されます。
                 </li>
             </ol>
         </div>
@@ -70,6 +83,9 @@
     <script>
         let db = null;
         let currentTable = "";
+        let currentPage = 1;
+        let pageSize = 100;
+        let totalRows = 0;
 
         async function initDB() {
             const statusEl = document.getElementById('status');
@@ -94,7 +110,6 @@
             }
         }
 
-        // データベース内のテーブル一覧を取得してセレクトボックスに詰める
         function loadTableList() {
             if (!db) return;
 
@@ -119,6 +134,7 @@
                 if (tables.length > 0) {
                     selectEl.value = tables[0];
                     currentTable = tables[0];
+                    currentPage = 1;
                     document.getElementById('searchInput').disabled = false;
                     queryData();
                 }
@@ -127,29 +143,53 @@
             }
         }
 
-        // 選択されたテーブルのデータを取得・検索する
-        function queryData(keyword = "") {
+        // データを取得・検索・ページングして描画
+        function queryData() {
             if (!db || !currentTable) return;
+
+            const keyword = document.getElementById('searchInput').value.trim();
 
             try {
                 const colStmt = db.prepare(`PRAGMA table_info("${currentTable}");`);
                 const columnNames = [];
                 while (colStmt.step()) {
-                    const info = colStmt.get();
-                    columnNames.push(info[1]);
+                    columnNames.push(colStmt.get()[1]);
                 }
                 colStmt.free();
 
-                let query = `SELECT * FROM "${currentTable}"`;
+                // 基本のWHERE句とパラメータ生成
+                let whereClause = "";
                 let params = [];
+                let countParams = [];
 
                 if (keyword && columnNames.length > 0) {
                     const conditions = columnNames.map(col => `"${col}" LIKE ?`).join(" OR ");
-                    query += ` WHERE ${conditions}`;
+                    whereClause = ` WHERE ${conditions}`;
                     const likeKeyword = `%${keyword}%`;
                     params = columnNames.map(() => likeKeyword);
+                    countParams = [...params];
                 }
-                query += " LIMIT 100";
+
+                // ③ ヒット件数（総件数）を取得するクエリ
+                const countQuery = `SELECT COUNT(*) FROM "${currentTable}"${whereClause};`;
+                const countStmt = db.prepare(countQuery);
+                countStmt.bind(countParams);
+                if (countStmt.step()) {
+                    totalRows = countStmt.get()[0];
+                }
+                countStmt.free();
+
+                // 総ページ数の計算
+                const totalPages = Math.ceil(totalRows / pageSize) || 1;
+                if (currentPage > totalPages) currentPage = totalPages;
+                if (currentPage < 1) currentPage = 1;
+
+                const offset = (currentPage - 1) * pageSize;
+
+                // データ取得クエリ (LIMIT & OFFSET 追加)
+                let query = `SELECT * FROM "${currentTable}"${whereClause} LIMIT ? OFFSET ?;`;
+                params.push(pageSize);
+                params.push(offset);
 
                 const stmt = db.prepare(query);
                 stmt.bind(params);
@@ -161,7 +201,13 @@
                 stmt.free();
 
                 renderTable(columnNames, rows);
-                document.getElementById('status').textContent = `テーブル「${currentTable}」を表示中: ${rows.length} 件 (最大100件)`;
+                updatePaginationUI(totalPages);
+
+                const startCount = totalRows === 0 ? 0 : offset + 1;
+                const endCount = offset + rows.length;
+                document.getElementById('status').textContent = 
+                    `テーブル「${currentTable}」を検索中 — 全 ${totalRows} 件中 (${startCount} 〜 ${endCount} 件目を表示)`;
+
             } catch (err) {
                 console.error(err);
                 document.getElementById('status').textContent = "クエリ実行エラー: " + err.message;
@@ -184,11 +230,26 @@
             ).join('');
         }
 
-        // イベントリスナー
-        document.getElementById('loadBtn').addEventListener('click', () => initDB());
+        function updatePaginationUI(totalPages) {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const pageInfo = document.getElementById('pageInfo');
+
+            pageInfo.textContent = `${currentPage} / ${totalPages} ページ (全 ${totalRows} 件)`;
+
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+        }
+
+        // --- イベントリスナー ---
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            currentPage = 1;
+            initDB();
+        });
         
         document.getElementById('tableSelect').addEventListener('change', (e) => {
             currentTable = e.target.value;
+            currentPage = 1;
             const searchInput = document.getElementById('searchInput');
             if (currentTable) {
                 searchInput.disabled = false;
@@ -199,14 +260,41 @@
                 document.getElementById('tableHead').innerHTML = "";
                 document.getElementById('tableBody').innerHTML = "";
                 document.getElementById('status').textContent = "テーブルを選択してください。";
+                updatePaginationUI(1);
             }
         });
 
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            queryData(e.target.value);
+        document.getElementById('searchInput').addEventListener('input', () => {
+            currentPage = 1; // 検索時は1ページ目に戻す
+            queryData();
         });
 
-        // ページ読み込み時に自動でDBロードを試みる
+        // ① 表示件数が変更された時
+        document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
+            pageSize = parseInt(e.target.value, 10);
+            currentPage = 1; // 件数変更時は1ページ目に戻す
+            queryData();
+        });
+
+        // ② 前へ・次へボタンの動作
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                queryData();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            const totalPages = Math.ceil(totalRows / pageSize) || 1;
+            if (currentPage < totalPages) {
+                currentPage++;
+                queryData();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+
+        // 初期ロード
         initDB();
     </script>
 </body>
