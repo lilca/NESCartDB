@@ -31,10 +31,13 @@ jobs:
           
       - name: Run Python scripts
         run: |
+          # 各サイトからダウンロード
           python src/get_libretro_database.py
           python src/get_nescartdb.py
           python src/get_wiki_licensed1384.py
           python src/get_pasofami_table.py
+          # インサート
+          python src/insert_nescartdb.py
 
       - name: Commit and push changes to db/
         run: |
