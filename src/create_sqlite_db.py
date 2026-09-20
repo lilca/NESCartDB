@@ -10,17 +10,6 @@ db_path = os.path.join(db_dir, "nes_games.db")
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
-# テーブル作成のサンプル（ゲーム情報を格納する場合の例）
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS games (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        release_date TEXT,
-        developer TEXT,
-        source TEXT
-    )
-""")
-
 conn.commit()
 conn.close()
 
