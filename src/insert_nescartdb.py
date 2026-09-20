@@ -68,7 +68,7 @@ def create_tbl(db_path, table_name):
     print(f"データベースのテーブル '{table_name}' の作成が完了しました。")
 
 # --- 実行部分 ---
-db_path = "nes_games.db"        # SQLiteのデータベースファイルパス
+db_path = "db/nes_games.db"        # SQLiteのデータベースファイルパス
 table_name = "nes_cart_tbl"     # 対象のテーブル名
 xml_file = "db/NstDatabase.xml" # ご指定のXMLファイルパス
 
