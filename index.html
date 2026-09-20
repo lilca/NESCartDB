@@ -11,9 +11,15 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6">
     <div class="max-w-6xl mx-auto">
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold mb-2">🎮 NESCartDB Viewer(開発中)</h1>
-            <p class="text-slate-400">SQLiteデータベースの閲覧・複数テーブル検索ツール</p>
+        <header class="mb-8 flex justify-between items-end flex-wrap gap-4">
+            <div>
+                <h1 class="text-3xl font-bold mb-2">🎮 NESCartDB Viewer(開発中)</h1>
+                <p class="text-slate-400">SQLiteデータベースの閲覧・複数テーブル検索ツール</p>
+            </div>
+            <!-- 🕒 DB更新日時表示エリア -->
+            <div id="dbUpdateDate" class="text-xs bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg text-slate-300">
+                DB更新日時: 読み込み待ち...
+            </div>
         </header>
 
         <!-- コントロールエリア -->
@@ -100,6 +106,7 @@
 
         async function initDB() {
             const statusEl = document.getElementById('status');
+            const updateDateEl = document.getElementById('dbUpdateDate');
             statusEl.textContent = "データベースをダウンロード中...";
 
             try {
@@ -110,6 +117,24 @@
                 const response = await fetch('db/nes_games.db');
                 if (!response.ok) throw new Error("データベースファイルが見つかりません。");
                 
+                // 🕒 サーバーから取得したファイルの更新日時（Last-Modified）を抽出
+                const lastModifiedHeader = response.headers.get('last-modified');
+                if (lastModifiedHeader) {
+                    const modDate = new Date(lastModifiedHeader);
+                    const formattedDate = modDate.toLocaleString('ja-JP', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        timeZone: 'Asia/Tokyo'
+                    });
+                    updateDateEl.textContent = `DB更新日時: ${formattedDate}`;
+                } else {
+                    updateDateEl.textContent = `DB更新日時: 取得不可 (ローカル実行等)`;
+                }
+
                 const buffer = await response.arrayBuffer();
                 db = new SQL.Database(new Uint8Array(buffer));
 
@@ -280,6 +305,7 @@
         });
 
         document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
+            currentDate = e.target.value;
             pageSize = parseInt(e.target.value, 10);
             currentPage = 1;
             queryData();
