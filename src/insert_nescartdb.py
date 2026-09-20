@@ -13,10 +13,6 @@ def get_allowed_attributes_from_db(db_path, table_name):
         
     return set(columns)
 
-ALLOWED_TAGS = {
-    "database", "game", "cartridge", "board", "prg", "chr", "chip", "vram", "wram", "pad"
-}
-
 def parse_and_insert_xml(file_path, db_path, table_name, allowed_attributes):
     tree = ET.parse(file_path)
     root = tree.getroot()
