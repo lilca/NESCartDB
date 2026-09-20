@@ -26,10 +26,8 @@ def parse_and_insert_xml(file_path, db_path, table_name, allowed_attributes):
     
     count = 0
     
-    # ネームスペースを考慮して <game> タグを走査
     for game_elem in root.iter():
         if game_elem.tag.split("}")[-1] == "game":
-            # 子要素からネームスペースを考慮して <cartridge> を探す
             cart_elem = None
             for child in game_elem:
                 if child.tag.split("}")[-1] == "cartridge":
@@ -37,25 +35,42 @@ def parse_and_insert_xml(file_path, db_path, table_name, allowed_attributes):
                     break
             
             if cart_elem is not None:
-                # 💡 属性のキー名からもネームスペース（例: {http...}）を剥がして辞書化する
+                # カートリッジの属性
                 cart_attrs = {k.split("}")[-1]: v for k, v in cart_elem.attrib.items()}
-                
+                system = cart_attrs.get("system", "")
                 crc = cart_attrs.get("crc", "")
                 sha1 = cart_attrs.get("sha1", "")
-                system = cart_attrs.get("system", "")
                 
-                title = f"{system} (CRC: {crc})" if system else f"CRC: {crc}"
-                rom_name = sha1
+                mapper = ""
+                prg_size = ""
+                chr_size = ""
+                chip_type = ""
                 
-                # バリデーションチェック
-                for attr_name in cart_attrs.keys():
-                    if attr_name not in allowed_attributes:
-                        print(f"【警告】DBスキーマにない属性: '{attr_name}'")
+                # ボード要素と子要素（prg, chr, chip等）を走査
+                for board_elem in cart_elem:
+                    if board_elem.tag.split("}")[-1] == "board":
+                        board_attrs = {k.split("}")[-1]: v for k, v in board_elem.attrib.items()}
+                        mapper = board_attrs.get("mapper", "")
+                        
+                        for sub in board_elem:
+                            sub_tag = sub.tag.split("}")[-1]
+                            sub_attrs = {k.split("}")[-1]: v for k, v in sub.attrib.items()}
+                            
+                            if sub_tag == "prg":
+                                prg_size = sub_attrs.get("size", "")
+                            elif sub_tag == "chr":
+                                chr_size = sub_attrs.get("size", "")
+                            elif sub_tag == "chip":
+                                chip_type = sub_attrs.get("type", "")
 
-                # nes_cart_tbl に対してINSERT実行
+                # 指定されたフィールド構成で INSERT
                 cursor.execute(
-                    f"INSERT INTO {table_name} (title, rom_name) VALUES (?, ?)",
-                    (title, rom_name)
+                    f"""
+                    INSERT INTO {table_name} 
+                    (system, mapper, prg_size, chr_size, chip_type, crc, sha1) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (system, mapper, prg_size, chr_size, chip_type, crc, sha1)
                 )
                 count += 1
 
@@ -68,11 +83,17 @@ def create_tbl(db_path, table_name):
     cursor = conn.cursor()
 
     cursor.execute(f"DROP TABLE IF EXISTS {table_name};")
+    # 💡 ご指定のフィールド構成でテーブルを作成
     cursor.execute(f"""
         CREATE TABLE {table_name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            rom_name TEXT
+            system TEXT,
+            mapper TEXT,
+            prg_size TEXT,
+            chr_size TEXT,
+            chip_type TEXT,
+            crc TEXT,
+            sha1 TEXT
         );
     """)
 
