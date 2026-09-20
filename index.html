@@ -26,11 +26,19 @@
             <input type="text" id="searchInput" placeholder="選択中のテーブルをキーワード検索..." 
                 class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 min-w-[200px]" disabled>
             
-            <!-- ① 1ページあたりの表示件数セレクトボックス -->
+            <!-- 1ページあたりの表示件数 -->
             <select id="pageSizeSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-slate-200">
                 <option value="25">25件表示</option>
                 <option value="50">50件表示</option>
                 <option value="100" selected>100件表示</option>
+            </select>
+
+            <!-- ページ移動のインクリメント（スキップ幅）選択 -->
+            <select id="incrementSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-slate-200">
+                <option value="1" selected>移動幅: 1ページ</option>
+                <option value="5">移動幅: 5ページ</option>
+                <option value="10">移動幅: 10ページ</option>
+                <option value="100">移動幅: 100ページ</option>
             </select>
 
             <button id="loadBtn" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-semibold transition">
@@ -38,7 +46,7 @@
             </button>
         </div>
 
-        <!-- ③ ステータス・ヒット件数表示 -->
+        <!-- ステータス・ヒット件数表示 -->
         <div id="status" class="text-sm text-slate-400 mb-4">「DB再読み込み」ボタンを押してデータをロードしてください。</div>
 
         <!-- テーブル表示エリア -->
@@ -49,14 +57,14 @@
             </table>
         </div>
 
-        <!-- ② ページネーションコントロール（前へ・ページ情報・次へ） -->
+        <!-- ページネーションコントロール -->
         <div id="pagination" class="flex justify-between items-center mb-8 bg-slate-800/50 border border-slate-700 rounded-lg px-6 py-3">
             <button id="prevBtn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
-                ◀ 前へ
+                ◀ 戻る
             </button>
             <span id="pageInfo" class="text-sm text-slate-300">0 / 0 ページ (全 0 件)</span>
             <button id="nextBtn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
-                次へ ▶
+                進む ▶
             </button>
         </div>
 
@@ -64,18 +72,8 @@
         <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
             <h2 class="text-xl font-bold mb-3 text-slate-200">📖 使い方ガイド</h2>
             <ol class="list-decimal list-inside space-y-3 text-slate-300 text-sm">
-                <li>
-                    <strong class="text-indigo-400">テーブルの選択 & 表示件数:</strong> 
-                    上部のセレクトボックスからテーブルを選び、必要に応じて「25件表示」「50件表示」などを切り替えます。
-                </li>
-                <li>
-                    <strong class="text-indigo-400">ページネーション（2ページ目以降）:</strong>
-                    データが多い場合は、下部の「前へ」「次へ」ボタンでページを切り替えて閲覧できます。
-                </li>
-                <li>
-                    <strong class="text-indigo-400">検索のヒット件数表示:</strong>
-                    キーワードを入力すると、リアルタイムでヒットした総件数がステータスとページ情報に反映されます。
-                </li>
+                <li><strong class="text-indigo-400">移動幅（インクリメント）の選択:</strong> 上部のセレクトボックスで「1・5・10・100ページ」の移動幅を切り替えられます。</li>
+                <li><strong class="text-indigo-400">範囲外ガード:</strong> 指定した移動幅分を進むと最大ページを超える場合、または戻ると1ページ目を割る場合は、自動的にボタンが無効化されます。</li>
             </ol>
         </div>
     </div>
@@ -85,6 +83,7 @@
         let currentTable = "";
         let currentPage = 1;
         let pageSize = 100;
+        let increment = 1;
         let totalRows = 0;
 
         async function initDB() {
@@ -143,7 +142,6 @@
             }
         }
 
-        // データを取得・検索・ページングして描画
         function queryData() {
             if (!db || !currentTable) return;
 
@@ -157,7 +155,6 @@
                 }
                 colStmt.free();
 
-                // 基本のWHERE句とパラメータ生成
                 let whereClause = "";
                 let params = [];
                 let countParams = [];
@@ -170,7 +167,6 @@
                     countParams = [...params];
                 }
 
-                // ③ ヒット件数（総件数）を取得するクエリ
                 const countQuery = `SELECT COUNT(*) FROM "${currentTable}"${whereClause};`;
                 const countStmt = db.prepare(countQuery);
                 countStmt.bind(countParams);
@@ -179,14 +175,12 @@
                 }
                 countStmt.free();
 
-                // 総ページ数の計算
                 const totalPages = Math.ceil(totalRows / pageSize) || 1;
                 if (currentPage > totalPages) currentPage = totalPages;
                 if (currentPage < 1) currentPage = 1;
 
                 const offset = (currentPage - 1) * pageSize;
 
-                // データ取得クエリ (LIMIT & OFFSET 追加)
                 let query = `SELECT * FROM "${currentTable}"${whereClause} LIMIT ? OFFSET ?;`;
                 params.push(pageSize);
                 params.push(offset);
@@ -237,8 +231,9 @@
 
             pageInfo.textContent = `${currentPage} / ${totalPages} ページ (全 ${totalRows} 件)`;
 
-            prevBtn.disabled = currentPage <= 1;
-            nextBtn.disabled = currentPage >= totalPages;
+            // 範囲外を超える場合はボタンを押せないようにする制御
+            prevBtn.disabled = (currentPage - increment < 1);
+            nextBtn.disabled = (currentPage + increment > totalPages);
         }
 
         // --- イベントリスナー ---
@@ -265,21 +260,27 @@
         });
 
         document.getElementById('searchInput').addEventListener('input', () => {
-            currentPage = 1; // 検索時は1ページ目に戻す
+            currentPage = 1;
             queryData();
         });
 
-        // ① 表示件数が変更された時
         document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
             pageSize = parseInt(e.target.value, 10);
-            currentPage = 1; // 件数変更時は1ページ目に戻す
+            currentPage = 1;
             queryData();
         });
 
-        // ② 前へ・次へボタンの動作
+        // ページ移動インクリメント（スキップ幅）変更時
+        document.getElementById('incrementSelect').addEventListener('change', (e) => {
+            increment = parseInt(e.target.value, 10);
+            const totalPages = Math.ceil(totalRows / pageSize) || 1;
+            updatePaginationUI(totalPages);
+        });
+
+        // インクリメント分移動するボタン
         document.getElementById('prevBtn').addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
+            if (currentPage - increment >= 1) {
+                currentPage -= increment;
                 queryData();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
@@ -287,14 +288,13 @@
 
         document.getElementById('nextBtn').addEventListener('click', () => {
             const totalPages = Math.ceil(totalRows / pageSize) || 1;
-            if (currentPage < totalPages) {
-                currentPage++;
+            if (currentPage + increment <= totalPages) {
+                currentPage += increment;
                 queryData();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         });
 
-        // 初期ロード
         initDB();
     </script>
 </body>
