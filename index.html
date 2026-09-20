@@ -80,7 +80,7 @@
                     locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
                 });
 
-                const response = await fetch('../db/nes_games.db');
+                const response = await fetch('db/nes_games.db');
                 if (!response.ok) throw new Error("データベースファイルが見つかりません。");
                 
                 const buffer = await response.arrayBuffer();
