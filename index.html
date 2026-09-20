@@ -49,21 +49,32 @@
         <!-- ステータス・ヒット件数表示 -->
         <div id="status" class="text-sm text-slate-400 mb-4">「DB再読み込み」ボタンを押してデータをロードしてください。</div>
 
+        <!-- 🎛️ 上部ページネーションコントロール -->
+        <div class="flex justify-between items-center mb-3 bg-slate-800/50 border border-slate-700 rounded-lg px-6 py-3">
+            <button class="prevBtn bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
+                ◀ 戻る
+            </button>
+            <span class="pageInfo text-sm text-slate-300">0 / 0 ページ (全 0 件)</span>
+            <button class="nextBtn bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
+                進む ▶
+            </button>
+        </div>
+
         <!-- テーブル表示エリア -->
-        <div class="bg-slate-800 rounded-lg shadow overflow-x-auto border border-slate-700 mb-4">
+        <div class="bg-slate-800 rounded-lg shadow overflow-x-auto border border-slate-700 mb-3">
             <table class="w-full text-left border-collapse" id="resultTable">
                 <thead id="tableHead" class="bg-slate-700 text-slate-300 uppercase text-xs"></thead>
                 <tbody id="tableBody" class="divide-y divide-slate-700 text-sm"></tbody>
             </table>
         </div>
 
-        <!-- ページネーションコントロール -->
-        <div id="pagination" class="flex justify-between items-center mb-8 bg-slate-800/50 border border-slate-700 rounded-lg px-6 py-3">
-            <button id="prevBtn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
+        <!-- 🎛️ 下部ページネーションコントロール -->
+        <div class="flex justify-between items-center mb-8 bg-slate-800/50 border border-slate-700 rounded-lg px-6 py-3">
+            <button class="prevBtn bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
                 ◀ 戻る
             </button>
-            <span id="pageInfo" class="text-sm text-slate-300">0 / 0 ページ (全 0 件)</span>
-            <button id="nextBtn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
+            <span class="pageInfo text-sm text-slate-300">0 / 0 ページ (全 0 件)</span>
+            <button class="nextBtn bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed" disabled>
                 進む ▶
             </button>
         </div>
@@ -72,7 +83,8 @@
         <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
             <h2 class="text-xl font-bold mb-3 text-slate-200">📖 使い方ガイド</h2>
             <ol class="list-decimal list-inside space-y-3 text-slate-300 text-sm">
-                <li><strong class="text-indigo-400">移動幅（インクリメント）の選択:</strong> 上部のセレクトボックスで「1・5・10・100ページ」の移動幅を切り替えられます。</li>
+                <li><strong class="text-indigo-400">上下のページ切り替え:</strong> テーブルの上部と下部の両方にページ移動コントロールを配置しているため、どちらからでもページをめくれます。</li>
+                <li><strong class="text-indigo-400">移動幅（インクリメント）の選択:</strong> 上部のセレクトボックスで「1・5・10・100ページ」のスキップ幅を切り替えられます。</li>
                 <li><strong class="text-indigo-400">範囲外ガード:</strong> 指定した移動幅分を進むと最大ページを超える場合、または戻ると1ページ目を割る場合は、自動的にボタンが無効化されます。</li>
             </ol>
         </div>
@@ -225,15 +237,18 @@
         }
 
         function updatePaginationUI(totalPages) {
-            const prevBtn = document.getElementById('prevBtn');
-            const nextBtn = document.getElementById('nextBtn');
-            const pageInfo = document.getElementById('pageInfo');
+            const prevBtns = document.querySelectorAll('.prevBtn');
+            const nextBtns = document.querySelectorAll('.nextBtn');
+            const pageInfos = document.querySelectorAll('.pageInfo');
 
-            pageInfo.textContent = `${currentPage} / ${totalPages} ページ (全 ${totalRows} 件)`;
+            const infoText = `${currentPage} / ${totalPages} ページ (全 ${totalRows} 件)`;
+            pageInfos.forEach(el => el.textContent = infoText);
 
-            // 範囲外を超える場合はボタンを押せないようにする制御
-            prevBtn.disabled = (currentPage - increment < 1);
-            nextBtn.disabled = (currentPage + increment > totalPages);
+            const cannotPrev = (currentPage - increment < 1);
+            const cannotNext = (currentPage + increment > totalPages);
+
+            prevBtns.forEach(btn => btn.disabled = cannotPrev);
+            nextBtns.forEach(btn => btn.disabled = cannotNext);
         }
 
         // --- イベントリスナー ---
@@ -270,29 +285,33 @@
             queryData();
         });
 
-        // ページ移動インクリメント（スキップ幅）変更時
         document.getElementById('incrementSelect').addEventListener('change', (e) => {
             increment = parseInt(e.target.value, 10);
             const totalPages = Math.ceil(totalRows / pageSize) || 1;
             updatePaginationUI(totalPages);
         });
 
-        // インクリメント分移動するボタン
-        document.getElementById('prevBtn').addEventListener('click', () => {
-            if (currentPage - increment >= 1) {
-                currentPage -= increment;
-                queryData();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
+        // 上下共通の「戻る」ボタンの処理
+        document.querySelectorAll('.prevBtn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (currentPage - increment >= 1) {
+                    currentPage -= increment;
+                    queryData();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
         });
 
-        document.getElementById('nextBtn').addEventListener('click', () => {
-            const totalPages = Math.ceil(totalRows / pageSize) || 1;
-            if (currentPage + increment <= totalPages) {
-                currentPage += increment;
-                queryData();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
+        // 上下共通の「進む」ボタンの処理
+        document.querySelectorAll('.nextBtn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const totalPages = Math.ceil(totalRows / pageSize) || 1;
+                if (currentPage + increment <= totalPages) {
+                    currentPage += increment;
+                    queryData();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
         });
 
         initDB();
