@@ -45,10 +45,24 @@
         <!-- 使い方セクション（下部） -->
         <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
             <h2 class="text-xl font-bold mb-3 text-slate-200">📖 使い方ガイド</h2>
-            <ol class="list-decimal list-inside space-y-2 text-slate-300 text-sm">
-                <li><strong class="text-indigo-400">DBファイルの配置:</strong> アプリケーション（HTML）から見て <code class="bg-slate-900 px-2 py-0.5 rounded text-indigo-300">../db/nes_games.db</code> の位置にSQLiteデータベースファイルを配置します。</li>
-                <li><strong class="text-indigo-400">テーブルの選択:</strong> ページを開くと自動でロードされます。読み込まれない場合は「DB再読み込み」ボタンを押し、上のセレクトボックスから閲覧したいテーブルを選択します。</li>
-                <li><strong class="text-indigo-400">横断検索:</strong> 検索バーにキーワード（CRC、SHA1、基板名など）を入力すると、選択中のテーブル内にあるすべての項目を対象にリアルタイムで絞り込み検索が行われます（最大100件表示）。</li>
+            <ol class="list-decimal list-inside space-y-3 text-slate-300 text-sm">
+                <li>
+                    <strong class="text-indigo-400">テーブルの選択:</strong> 
+                    上部のセレクトボックスから閲覧・検索したいテーブルを選択します。選択すると自動でデータが読み込まれます。
+                </li>
+                <li>
+                    <strong class="text-indigo-400">検索バーの使い方（横断あいまい検索）:</strong>
+                    <ul class="list-disc list-inside ml-6 mt-1 space-y-1 text-slate-400">
+                        <li>キーワードを入力すると、選択中のテーブル内にある<strong>すべてのカラム（項目）を対象にリアルタイムで絞り込み</strong>が行われます（最大100件表示）。</li>
+                        <li>CRC32（例: <code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-300">001388B3</code>）やSHA1ハッシュの一部、基板名（例: <code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-300">TLROM</code>）、システム名などをそのまま入力して検索できます。</li>
+                        <li>大文字・小文字は区別されず、部分一致（一部の文字が含まれていればヒット）に対応しています。</li>
+                        <li>検索ボックスの中身をすべて消去（空欄）にすると、自動で全件一覧表示に戻ります。</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong class="text-indigo-400">DBファイルの再読み込み:</strong> 
+                    データベースファイルを差し替え・更新した場合は、右上の「DB再読み込み」ボタンを押すことで最新のデータを再読み込みできます。
+                </li>
             </ol>
         </div>
     </div>
