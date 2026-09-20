@@ -1,4 +1,4 @@
-name: Update Database
+name: Download Raw Data
 
 on:
   # 定期実行する場合（例: 毎週月曜日の深夜0時）
