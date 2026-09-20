@@ -35,11 +35,21 @@
         <div id="status" class="text-sm text-slate-400 mb-4">「DB再読み込み」ボタンを押してデータをロードしてください。</div>
 
         <!-- テーブル表示エリア -->
-        <div class="bg-slate-800 rounded-lg shadow overflow-x-auto border border-slate-700">
+        <div class="bg-slate-800 rounded-lg shadow overflow-x-auto border border-slate-700 mb-8">
             <table class="w-full text-left border-collapse" id="resultTable">
                 <thead id="tableHead" class="bg-slate-700 text-slate-300 uppercase text-xs"></thead>
                 <tbody id="tableBody" class="divide-y divide-slate-700 text-sm"></tbody>
             </table>
+        </div>
+
+        <!-- 使い方セクション（下部） -->
+        <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
+            <h2 class="text-xl font-bold mb-3 text-slate-200">📖 使い方ガイド</h2>
+            <ol class="list-decimal list-inside space-y-2 text-slate-300 text-sm">
+                <li><strong class="text-indigo-400">DBファイルの配置:</strong> アプリケーション（HTML）から見て <code class="bg-slate-900 px-2 py-0.5 rounded text-indigo-300">../db/nes_games.db</code> の位置にSQLiteデータベースファイルを配置します。</li>
+                <li><strong class="text-indigo-400">テーブルの選択:</strong> ページを開くと自動でロードされます。読み込まれない場合は「DB再読み込み」ボタンを押し、上のセレクトボックスから閲覧したいテーブルを選択します。</li>
+                <li><strong class="text-indigo-400">横断検索:</strong> 検索バーにキーワード（CRC、SHA1、基板名など）を入力すると、選択中のテーブル内にあるすべての項目を対象にリアルタイムで絞り込み検索が行われます（最大100件表示）。</li>
+            </ol>
         </div>
     </div>
 
@@ -78,7 +88,6 @@
             selectEl.innerHTML = '<option value="">-- テーブルを選択 --</option>';
 
             try {
-                // sqlite_master からユーザー定義のテーブル名を取得
                 const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
                 const tables = [];
                 while (stmt.step()) {
@@ -94,7 +103,6 @@
                 });
 
                 if (tables.length > 0) {
-                    // 自動的に最初のテーブルを選択状態にする
                     selectEl.value = tables[0];
                     currentTable = tables[0];
                     document.getElementById('searchInput').disabled = false;
@@ -110,13 +118,11 @@
             if (!db || !currentTable) return;
 
             try {
-                // テーブルのカラム情報を動的に取得して検索対象を決定
                 const colStmt = db.prepare(`PRAGMA table_info("${currentTable}");`);
-                const columns = [];
                 const columnNames = [];
                 while (colStmt.step()) {
                     const info = colStmt.get();
-                    columnNames.push(info[1]); // カラム名
+                    columnNames.push(info[1]);
                 }
                 colStmt.free();
 
@@ -124,7 +130,6 @@
                 let params = [];
 
                 if (keyword && columnNames.length > 0) {
-                    // すべてのテキスト系カラムに対してLIKE検索を構築
                     const conditions = columnNames.map(col => `"${col}" LIKE ?`).join(" OR ");
                     query += ` WHERE ${conditions}`;
                     const likeKeyword = `%${keyword}%`;
