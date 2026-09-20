@@ -43,10 +43,35 @@ def parse_and_validate_xml_file(file_path, allowed_attributes):
 
     return record
 
+def create_tbl(db_path, table_name):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # 1. 毎回きれいな状態で作り直す場合（DROPしてからCREATE）
+    cursor.execute("""
+        CREATE TABLE table_name (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            rom_name TEXT
+        );
+    """)
+
+    # 2. XMLやDATからデータを読み込んでインサートする処理
+    # （例：パースしたデータをループで回して INSERT するなど）
+    # for row in parsed_data:
+    #     cursor.execute("INSERT INTO games (title, rom_name) VALUES (?, ?)", (row['title'], row['rom']))
+
+    conn.commit()
+    conn.close()
+
+print("データベースのテーブル作成とデータのインサートが完了しました。")
 # --- 実行部分 ---
 db_path = "nes_games.db"        # SQLiteのデータベースファイルパス
 table_name = "nes_cart_tbl"         # 対象のテーブル名
 xml_file = "db/NstDatabase.xml"     # ご指定のXMLファイルパス
+
+print("--- テーブル作成開始 ---")
+create_tbl()
 
 print("--- スキーマ（DB）とXMLの検証を開始 ---")
 try:
