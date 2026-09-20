@@ -24,7 +24,9 @@ def import_libretro_dat(dat_path, db_path):
 
   # 既存データをクリア
   cursor.execute("DELETE FROM libretro_tbl")
-
+  # AUTOINCREMENTのカウンターをリセットする
+  cursor.execute("DELETE FROM sqlite_sequence WHERE name='libretro_tbl'")
+  
   # 先頭の clrmamepro (...) ヘッダーブロックを削除
   text_cleaned = re.sub(
       r"clrmamepro\s*\(.*?\)", "", text, flags=re.DOTALL | re.IGNORECASE
