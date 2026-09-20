@@ -69,7 +69,7 @@ def import_famicom_wiki_xml(xml_path, db_path):
 
 
 if __name__ == "__main__":
-  xml_file = "db/famicom_games.xml"
+  xml_file = "db/famicom_games_wiki.xml"
   database_file = "db/nes_games.db"
 
   import_famicom_wiki_xml(xml_file, database_file)
