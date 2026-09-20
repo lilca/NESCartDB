@@ -35,21 +35,25 @@ def parse_and_insert_xml(file_path, db_path, table_name, allowed_attributes):
                     break
             
             if cart_elem is not None:
-                # カートリッジの属性
+                # カートリッジの属性（system, dump, crc, sha1）
                 cart_attrs = {k.split("}")[-1]: v for k, v in cart_elem.attrib.items()}
                 system = cart_attrs.get("system", "")
+                dump = cart_attrs.get("dump", "")
                 crc = cart_attrs.get("crc", "")
                 sha1 = cart_attrs.get("sha1", "")
                 
+                board_type = ""
                 mapper = ""
                 prg_size = ""
                 chr_size = ""
                 chip_type = ""
                 
-                # ボード要素と子要素（prg, chr, chip等）を走査
+                # ボード要素と子要素を走査
                 for board_elem in cart_elem:
                     if board_elem.tag.split("}")[-1] == "board":
                         board_attrs = {k.split("}")[-1]: v for k, v in board_elem.attrib.items()}
+                        # boardの type 属性を board_type として取得
+                        board_type = board_attrs.get("type", "")
                         mapper = board_attrs.get("mapper", "")
                         
                         for sub in board_elem:
@@ -63,14 +67,14 @@ def parse_and_insert_xml(file_path, db_path, table_name, allowed_attributes):
                             elif sub_tag == "chip":
                                 chip_type = sub_attrs.get("type", "")
 
-                # 指定されたフィールド構成で INSERT
+                # データベースに INSERT
                 cursor.execute(
                     f"""
                     INSERT INTO {table_name} 
-                    (system, mapper, prg_size, chr_size, chip_type, crc, sha1) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (system, dump, board_type, mapper, prg_size, chr_size, chip_type, crc, sha1) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (system, mapper, prg_size, chr_size, chip_type, crc, sha1)
+                    (system, dump, board_type, mapper, prg_size, chr_size, chip_type, crc, sha1)
                 )
                 count += 1
 
@@ -83,11 +87,13 @@ def create_tbl(db_path, table_name):
     cursor = conn.cursor()
 
     cursor.execute(f"DROP TABLE IF EXISTS {table_name};")
-    # 💡 ご指定のフィールド構成でテーブルを作成
+    # dump と board_type を含めたテーブル構造
     cursor.execute(f"""
         CREATE TABLE {table_name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             system TEXT,
+            dump TEXT,
+            board_type TEXT,
             mapper TEXT,
             prg_size TEXT,
             chr_size TEXT,
