@@ -48,8 +48,9 @@ def create_tbl(db_path, table_name):
     cursor = conn.cursor()
 
     # 1. 毎回きれいな状態で作り直す場合（DROPしてからCREATE）
+    cursor.execute(f"DROP TABLE IF EXISTS {table_name};")
     cursor.execute("""
-        CREATE TABLE table_name (
+        CREATE TABLE {table_name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT,
             rom_name TEXT
@@ -71,7 +72,7 @@ table_name = "nes_cart_tbl"         # 対象のテーブル名
 xml_file = "db/NstDatabase.xml"     # ご指定のXMLファイルパス
 
 print("--- テーブル作成開始 ---")
-create_tbl()
+create_tbl(db_path, table_name)
 
 print("--- スキーマ（DB）とXMLの検証を開始 ---")
 try:
