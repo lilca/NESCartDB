@@ -49,7 +49,7 @@ def create_tbl(db_path, table_name):
 
     # 1. 毎回きれいな状態で作り直す場合（DROPしてからCREATE）
     cursor.execute(f"DROP TABLE IF EXISTS {table_name};")
-    cursor.execute("""
+    cursor.execute(f"""
         CREATE TABLE {table_name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT,
