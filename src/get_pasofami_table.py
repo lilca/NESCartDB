@@ -8,7 +8,22 @@ target_url = "http://pasofami.game.coocan.jp/nesalltitlelst.htm"
 
 print("Wayback Machineからアーカイブ情報を取得中...")
 api_url = f"http://archive.org/wayback/available?url={target_url}"
-api_res = requests.get(api_url).json()
+#api_res = requests.get(api_url).json()
+
+#  Wayback MachineのAPI取得処理とエラーハンドリング
+try:
+    api_res = requests.get(api_url, timeout=10).json()
+except requests.exceptions.RequestException as e:
+    print(f" 【通信エラー】Wayback MachineのAPIへのリクエストに失敗しました: {e}")
+    raise
+except ValueError as e:
+    print(f" 【JSONパースエラー】Wayback Machineから返されたデータがJSONではありませんでした: {e}")
+    try:
+        raw_text = requests.get(api_url, timeout=10).text
+        print(f" 実際に返ってきたレスポンス内容（先頭500文字）:\n{raw_text[:500]}")
+    except Exception:
+        pass
+    raise
 
 if (
     "archived_snapshots" in api_res
@@ -17,6 +32,7 @@ if (
   archive_url = api_res["archived_snapshots"]["closest"]["url"]
   print(f"取得元アーカイブURL: {archive_url}")
 else:
+  print(f" 【データエラー】アーカイブスナップショットが見つかりませんでした。APIの応答内容: {api_res}")
   raise RuntimeError("Wayback Machineに対象ページのアーカイブが見つかりません。")
 
 print("PasofamiのHTMLを取得中...")
@@ -26,17 +42,42 @@ headers = {
         " like Gecko) Chrome/122.0.0.0 Safari/537.36"
     )
 }
-response = requests.get(archive_url, headers=headers)
-response.encoding = "shift_jis"
-response.raise_for_status()
+
+#  アーカイブページ自体の取得エラーハンドリング
+try:
+    response = requests.get(archive_url, headers=headers, timeout=15)
+    response.encoding = "shift_jis"
+    response.raise_for_status()
+except requests.exceptions.RequestException as e:
+    print(f"💡 【通信・ステータスエラー】アーカイブページからのHTML取得に失敗しました: {e}")
+    if 'response' in locals() and response is not None:
+        print(f"ステータスコード: {response.status_code}")
+        print(f"レスポンス内容（先頭500文字）:\n{response.text[:500]}")
+    raise
+    
+#response = requests.get(archive_url, headers=headers)
+#response.encoding = "shift_jis"
+#response.raise_for_status()
 
 print("テーブルデータを解析中...")
-tables = pd.read_html(io.StringIO(response.text))
+
+#  pandasによるHTMLテーブル解析のエラーハンドリング
+try:
+    tables = pd.read_html(io.StringIO(response.text))
+except Exception as e:
+    print(f" 【解析エラー】pandas.read_html でテーブルのパースに失敗しました: {e}")
+    print(f"取得したHTMLの長さ: {len(response.text)} 文字")
+    print(f"HTMLの先頭部分:\n{response.text[:300]}")
+    raise
+#tables = pd.read_html(io.StringIO(response.text))
+
 print(f"取得したテーブル数: {len(tables)}")
 
 if len(tables) > 0:
   df_all = pd.concat(tables, ignore_index=True)
 else:
+  print(f" 【データ構造エラー】HTML内にテーブル要素が見つかりませんでした。")
+  print(f"取得したHTMLの先頭部分:\n{response.text[:500]}")
   raise ValueError("テーブルが見つかりませんでした。")
 
 print(f"総行数: {len(df_all)}")
