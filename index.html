@@ -12,21 +12,27 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6">
     <div class="max-w-6xl mx-auto">
         <header class="mb-8">
-            <h1 class="text-3xl font-bold mb-2">🎮 NESCartDB Viewer (開発途中)</h1>
-            <p class="text-slate-400">SQLiteデータベース (nes_games.db) の閲覧・検索ツール</p>
+            <h1 class="text-3xl font-bold mb-2">🎮 NESCartDB Viewer</h1>
+            <p class="text-slate-400">SQLiteデータベースの閲覧・複数テーブル検索ツール</p>
         </header>
 
-        <!-- 検索バー -->
-        <div class="mb-6 flex gap-4">
-            <input type="text" id="searchInput" placeholder="タイトルやキーワードで検索..." 
-                class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500">
+        <!-- コントロールエリア（テーブル選択 ＆ 検索バー） -->
+        <div class="mb-6 flex gap-4 flex-wrap items-center">
+            <!-- テーブル一覧選択セレクトボックス -->
+            <select id="tableSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 text-slate-200">
+                <option value="">-- テーブルを選択 --</option>
+            </select>
+
+            <input type="text" id="searchInput" placeholder="選択中のテーブルをキーワード検索..." 
+                class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 min-w-[200px]" disabled>
+            
             <button id="loadBtn" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-semibold transition">
-                DB読み込み
+                DB再読み込み
             </button>
         </div>
 
         <!-- ステータス・件数表示 -->
-        <div id="status" class="text-sm text-slate-400 mb-4">「DB読み込み」ボタンを押してデータをロードしてください。</div>
+        <div id="status" class="text-sm text-slate-400 mb-4">「DB再読み込み」ボタンを押してデータをロードしてください。</div>
 
         <!-- テーブル表示エリア -->
         <div class="bg-slate-800 rounded-lg shadow overflow-x-auto border border-slate-700">
@@ -39,60 +45,107 @@
 
     <script>
         let db = null;
+        let currentTable = "";
 
         async function initDB() {
             const statusEl = document.getElementById('status');
             statusEl.textContent = "データベースをダウンロード中...";
 
             try {
-                // SQL.jsの初期化
                 const SQL = await initSqlJs({
                     locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
                 });
 
-                // db/nes_games.db をフェッチ (パスはプロジェクトの公開構造に合わせて調整してください)
                 const response = await fetch('../db/nes_games.db');
                 if (!response.ok) throw new Error("データベースファイルが見つかりません。");
                 
                 const buffer = await response.arrayBuffer();
                 db = new SQL.Database(new Uint8Array(buffer));
 
-                statusEl.textContent = "データベースの読み込みが完了しました。";
-                queryData();
+                statusEl.textContent = "データベースの読み込みが完了しました。テーブルを選択してください。";
+                loadTableList();
             } catch (err) {
                 statusEl.textContent = "エラー: " + err.message;
                 console.error(err);
             }
         }
 
-        function queryData(keyword = "") {
+        // データベース内のテーブル一覧を取得してセレクトボックスに詰める
+        function loadTableList() {
             if (!db) return;
 
+            const selectEl = document.getElementById('tableSelect');
+            selectEl.innerHTML = '<option value="">-- テーブルを選択 --</option>';
+
             try {
-                let query = "SELECT * FROM games";
+                // sqlite_master からユーザー定義のテーブル名を取得
+                const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
+                const tables = [];
+                while (stmt.step()) {
+                    tables.push(stmt.get()[0]);
+                }
+                stmt.free();
+
+                tables.forEach(tableName => {
+                    const opt = document.createElement('option');
+                    opt.value = tableName;
+                    opt.textContent = tableName;
+                    selectEl.appendChild(opt);
+                });
+
+                if (tables.length > 0) {
+                    // 自動的に最初のテーブルを選択状態にする
+                    selectEl.value = tables[0];
+                    currentTable = tables[0];
+                    document.getElementById('searchInput').disabled = false;
+                    queryData();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // 選択されたテーブルのデータを取得・検索する
+        function queryData(keyword = "") {
+            if (!db || !currentTable) return;
+
+            try {
+                // テーブルのカラム情報を動的に取得して検索対象を決定
+                const colStmt = db.prepare(`PRAGMA table_info("${currentTable}");`);
+                const columns = [];
+                const columnNames = [];
+                while (colStmt.step()) {
+                    const info = colStmt.get();
+                    columnNames.push(info[1]); // カラム名
+                }
+                colStmt.free();
+
+                let query = `SELECT * FROM "${currentTable}"`;
                 let params = [];
 
-                if (keyword) {
-                    query += " WHERE title LIKE ?";
-                    params = [`%${keyword}%`];
+                if (keyword && columnNames.length > 0) {
+                    // すべてのテキスト系カラムに対してLIKE検索を構築
+                    const conditions = columnNames.map(col => `"${col}" LIKE ?`).join(" OR ");
+                    query += ` WHERE ${conditions}`;
+                    const likeKeyword = `%${keyword}%`;
+                    params = columnNames.map(() => likeKeyword);
                 }
-                query += " LIMIT 100"; // 表示件数制限
+                query += " LIMIT 100";
 
                 const stmt = db.prepare(query);
                 stmt.bind(params);
 
-                const columns = stmt.getColumnNames();
                 const rows = [];
                 while (stmt.step()) {
                     rows.push(stmt.get());
                 }
                 stmt.free();
 
-                renderTable(columns, rows);
-                document.getElementById('status').textContent = `表示中: ${rows.length} 件`;
+                renderTable(columnNames, rows);
+                document.getElementById('status').textContent = `テーブル「${currentTable}」を表示中: ${rows.length} 件 (最大100件)`;
             } catch (err) {
                 console.error(err);
-                document.getElementById('status').textContent = "クエリ実行エラー（テーブルが存在しない可能性があります）";
+                document.getElementById('status').textContent = "クエリ実行エラー: " + err.message;
             }
         }
 
@@ -112,10 +165,30 @@
             ).join('');
         }
 
+        // イベントリスナー
         document.getElementById('loadBtn').addEventListener('click', () => initDB());
+        
+        document.getElementById('tableSelect').addEventListener('change', (e) => {
+            currentTable = e.target.value;
+            const searchInput = document.getElementById('searchInput');
+            if (currentTable) {
+                searchInput.disabled = false;
+                searchInput.value = "";
+                queryData();
+            } else {
+                searchInput.disabled = true;
+                document.getElementById('tableHead').innerHTML = "";
+                document.getElementById('tableBody').innerHTML = "";
+                document.getElementById('status').textContent = "テーブルを選択してください。";
+            }
+        });
+
         document.getElementById('searchInput').addEventListener('input', (e) => {
             queryData(e.target.value);
         });
+
+        // ページ読み込み時に自動でDBロードを試みる
+        initDB();
     </script>
 </body>
 </html>
