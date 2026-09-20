@@ -1,0 +1,51 @@
+name: Update Database
+
+on:
+  # GitHubの「Actions」タブから手動で実行できるようにする
+  workflow_dispatch:
+  
+  # （オプション）「Download Raw Data」の完了をトリガーに自動連動させたい場合は以下を生かす
+  # workflow_run:
+  #   workflows: ["Download Raw Data"]
+  #   types:
+  #     - completed
+
+permissions:
+  contents: write
+
+jobs:
+  build-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # 必要に応じてスクリプトが使っているライブラリを追加してください
+          pip install pandas lxml
+          
+      - name: Run Database Update Scripts
+        run: |
+          # データベースを初期化・作成するスクリプト、またはインサートするスクリプトを実行
+          # ※スクリプトの配置場所（src/ の有無など）に合わせてパスを調整してください
+          python src/create_sqlite_db.py
+          python src/insert_nescartdb.py
+
+      - name: Commit and push updated SQLite database
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.io"
+          
+          # データベースファイル（.db や .sqlite など）が保存されるパスを指定
+          git add db/
+          
+          # 変更がある場合のみ自動でコミット＆プッシュ
+          git diff --staged --quiet || git commit -m "Auto-update SQLite database from raw data"
+          git push
