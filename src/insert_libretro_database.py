@@ -15,7 +15,7 @@ def import_libretro_dat(dat_path, db_path):
   conn = sqlite3.connect(db_path)
   cursor = conn.cursor()
 
-  # libretro_tbl テーブルの作成（構文エラーを防ぐため1行の文字列に変更）
+  # libretro_tbl テーブルの作成
   cursor.execute(
       "CREATE TABLE IF NOT EXISTS libretro_tbl (id INTEGER PRIMARY KEY"
       ' AUTOINCREMENT, name TEXT, description TEXT, "file-name" TEXT, size'
@@ -30,17 +30,33 @@ def import_libretro_dat(dat_path, db_path):
       r"clrmamepro\s*\(.*?\)", "", text, flags=re.DOTALL | re.IGNORECASE
   )
 
-  # 各 game ブロックを抽出
-  game_blocks = re.findall(
-      r"\bgame\s*\((.*?)\)\s*(?=\n\s*game|\Z)", text_cleaned, re.DOTALL
+  # ---- ここがポイント ----
+  # game ( ... ) ブロックの切り出しは「行頭の 'game (' の出現位置」で行う。
+  # 括弧の数え上げ（(.*?)\)）に頼らないので、ファイル名中の
+  # "(Japan)" "(Rev 1)" "(Unl)" のような括弧があっても壊れない。
+  starts = [m.start() for m in re.finditer(r"^game\s*\(", text_cleaned, re.MULTILINE)]
+  game_blocks = []
+  for i, start in enumerate(starts):
+    end = starts[i + 1] if i + 1 < len(starts) else len(text_cleaned)
+    game_blocks.append(text_cleaned[start:end])
+
+  # rom (...) の中身を丸ごと1つの正規表現でキャプチャする。
+  # name → size → crc → md5 → sha1 という固定の並びを直接パターン化しているので、
+  # name 内に "(" ")" が含まれていても size 以降まで正しく読める。
+  rom_pattern = re.compile(
+      r'rom\s*\(\s*name\s+"(?P<fname>[^"]*)"'
+      r"\s+size\s+(?P<size>\d+)"
+      r"\s+crc\s+(?P<crc>[0-9a-fA-F]+)"
+      r"\s+md5\s+(?P<md5>[0-9a-fA-F]+)"
+      r"\s+sha1\s+(?P<sha1>[0-9a-fA-F]+)"
+      r"\s*\)",
+      re.DOTALL,
   )
-  if not game_blocks:
-    game_blocks = re.findall(r"\bgame\s*\((.*?)\)", text_cleaned, re.DOTALL)
 
   inserted_count = 0
 
   for block in game_blocks:
-    # 1. game の name 取得
+    # 1. game の name 取得（rom行より前に出てくる最初の name）
     m_name = re.search(r'\bname\s+"([^"]+)"', block)
     game_name = m_name.group(1) if m_name else ""
 
@@ -48,36 +64,15 @@ def import_libretro_dat(dat_path, db_path):
     m_desc = re.search(r'\bdescription\s+"([^"]+)"', block)
     description = m_desc.group(1) if m_desc else ""
 
-    # 3. rom ブロックの解析（括弧の中身を安全に抽出してパース）
+    # 3. rom ブロックの解析（括弧数えではなくフィールド構造で直接抽出）
     file_name, size, crc, md5, sha1 = "", None, "", "", ""
-
-    m_rom = re.search(r"rom\s*\((.*?)\)", block, re.DOTALL)
+    m_rom = rom_pattern.search(block)
     if m_rom:
-      rom_content = m_rom.group(1)
-
-      # file-name
-      m_rname = re.search(
-          r'\bname\s+(?:"([^"]+)"|\'([^\']*)\'|([^\s]+))', rom_content
-      )
-      if m_rname:
-        file_name = m_rname.group(1) or m_rname.group(2) or m_rname.group(3) or ""
-
-      # size
-      m_size = re.search(r"\bsize\s+(\d+)", rom_content)
-      if m_size:
-        size = int(m_size.group(1))
-
-      # crc
-      m_crc = re.search(r"\bcrc\s+([0-9a-fA-F]+)", rom_content)
-      crc = m_crc.group(1) if m_crc else ""
-
-      # md5
-      m_md5 = re.search(r"\bmd5\s+([0-9a-fA-F]+)", rom_content)
-      md5 = m_md5.group(1) if m_md5 else ""
-
-      # sha1
-      m_sha1 = re.search(r"\bsha1\s+([0-9a-fA-F]+)", rom_content)
-      sha1 = m_sha1.group(1) if m_sha1 else ""
+      file_name = m_rom.group("fname")
+      size = int(m_rom.group("size"))
+      crc = m_rom.group("crc")
+      md5 = m_rom.group("md5")
+      sha1 = m_rom.group("sha1")
 
     # データベースへインサート
     params = (game_name, description, file_name, size, crc, md5, sha1)
