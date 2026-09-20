@@ -1,37 +1,66 @@
+import sqlite3
 import xml.etree.ElementTree as ET
 
-# 1. データベースのスキーマ（または許可するXMLの属性・タグ名）の定義
-ALLOWED_ATTRIBUTES = {
-    "system", "dump", "crc", "sha1", 
-    "type", "mapper", "size"
-}
+# 1. SQLiteデータベースからテーブルのスキーマ（カラム名）を動的に取得する
+def get_allowed_attributes_from_db(db_path, table_name):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    # テーブルのカラム情報を取得
+    cursor.execute(f"PRAGMA table_info({table_name});")
+    # row[1] にカラム名が入っている
+    columns = [row[1] for row in cursor.fetchall()]
+    conn.close()
+    
+    # 'id'（自動採番）などはXML側には存在しないため除外またはそのままでもOK
+    if "id" in columns:
+        columns.remove("id")
+        
+    return set(columns)
 
+# XMLの構造上のタグの許可リスト
 ALLOWED_TAGS = {
     "database", "game", "cartridge", "board", "prg", "chr", "chip"
 }
 
-def parse_and_validate_xml(xml_string):
-    root = ET.fromstring(xml_string)
+def parse_and_validate_xml_file(file_path, allowed_attributes):
+    tree = ET.parse(file_path)
+    root = tree.getroot()
     
-    # データを格納する辞書（SQLiteインサート用）
     record = {}
     
     # 要素を再帰的に走査してチェック
     for elem in root.iter():
         # タグ名のチェック
         if elem.tag not in ALLOWED_TAGS:
-            print(f"【警告】スキーマ（許可リスト）にないタグが見つかりました: <{elem.tag}>")
+            print(f"【警告】スキーマ（タグ）にない要素が見つかりました: <{elem.tag}>")
         
-        # 属性名のチェック
+        # 属性名のチェック（DBのスキーマと照合）
         for attr_name, attr_value in elem.attrib.items():
-            if attr_name not in ALLOWED_ATTRIBUTES:
-                print(f"【警告】スキーマ（許可リスト）にない属性が見つかりました: '{attr_name}' (値: {attr_value})")
+            if attr_name not in allowed_attributes:
+                print(f"【警告】DBスキーマに存在しない属性が見つかりました: '{attr_name}' (値: {attr_value})")
             else:
                 record[attr_name] = attr_value
 
     return record
 
-xml_file = ""
+# --- 実行部分 ---
+db_path = "nes_games.db"        # SQLiteのデータベースファイルパス
+table_name = "nes_cart_tbl"         # 対象のテーブル名
+xml_file = "db/NstDatabase.xml"     # ご指定のXMLファイルパス
 
-print("--- パースおよびスキーマ検証を開始 ---")
-extracted_data = parse_and_validate_xml(xml_file)
+print("--- スキーマ（DB）とXMLの検証を開始 ---")
+try:
+    # データベースからスキーマを自動読み込み
+    allowed_attributes = get_allowed_attributes_from_db(db_path, table_name)
+    print(f"DBから読み込んだ有効なカラム（スキーマ）: {allowed_attributes}\n")
+    
+    # パースと検証の実行
+    extracted_data = parse_and_validate_xml_file(xml_file, allowed_attributes)
+    print("\n検証・抽出完了")
+    
+except sqlite3.OperationalError as e:
+    print(f"データベースエラー: テーブルまたはDBファイルが見つかりません ({e})")
+except FileNotFoundError:
+    print(f"エラー: XMLファイル '{xml_file}' が見つかりません。")
+except ET.ParseError:
+    print("エラー: XMLの構文解析に失敗しました。")
