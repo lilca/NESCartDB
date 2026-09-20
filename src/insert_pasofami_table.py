@@ -34,7 +34,9 @@ def import_pasofami_xml(xml_path, db_path):
 
   # 既存のデータを重複させないためにクリアする場合（必要に応じてコメントアウトしてください）
   cursor.execute("DELETE FROM pasofami_tbl")
-
+  # AUTOINCREMENTのカウンターをリセットする
+  cursor.execute("DELETE FROM sqlite_sequence WHERE name='pasofami_tbl'")
+  
   is_header_passed = False
   insert_count = 0
 
