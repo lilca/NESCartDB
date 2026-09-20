@@ -31,21 +31,7 @@ def parse_and_validate_xml(xml_string):
 
     return record
 
-# --- テスト用のXML（あえて未知の項目 'unknown_attr' と '<unknown_tag>' を混ぜています） ---
-sample_xml = """<?xml version="1.0" encoding="UTF-8"?>
-<database version="1.0" conformance="loose">
-    <game>
-        <cartridge system="NES-PAL" dump="ok" crc="001388B3" sha1="4BCD36C05FCAF45C74001257C65AFB7EC5FA53D7" unknown_attr="invalid_value">
-            <board type="NES-TLROM" mapper="4">
-                <prg size="256k" />
-                <chr size="128k" />
-                <chip type="MMC3C" />
-                <unknown_tag>extra_data</unknown_tag>
-            </board>
-        </cartridge>
-    </game>
-</database>
-"""
+xml_file = ""
 
 print("--- パースおよびスキーマ検証を開始 ---")
-extracted_data = parse_and_validate_xml(sample_xml)
+extracted_data = parse_and_validate_xml(xml_file)
